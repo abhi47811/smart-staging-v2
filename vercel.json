@@ -1,0 +1,33 @@
+{
+  "framework": "nextjs",
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    }
+  ],
+  "functions": {
+    "src/app/api/generate/route.ts":         { "maxDuration": 300 },
+    "src/app/api/generate/fitout/route.ts":  { "maxDuration": 300 },
+    "src/app/api/generate/furniture/route.ts": { "maxDuration": 300 },
+    "src/app/api/generate/exterior/route.ts":  { "maxDuration": 300 },
+    "src/app/api/generate/lighting/route.ts":  { "maxDuration": 300 },
+    "src/app/api/generate/harmonize/route.ts": { "maxDuration": 300 },
+    "src/app/api/generate/render-to-photo/route.ts": { "maxDuration": 300 },
+    "src/app/api/analyze/route.ts":          { "maxDuration": 300 },
+    "src/app/api/edit/route.ts":             { "maxDuration": 120 },
+    "src/app/api/edit/submit/route.ts":      { "maxDuration": 120 },
+    "src/app/api/quality/route.ts":          { "maxDuration": 300 },
+    "src/app/api/pipeline/batch/route.ts":   { "maxDuration": 300 },
+    "src/app/api/export/route.ts":           { "maxDuration": 300 }
+  },
+  "crons": []
+}

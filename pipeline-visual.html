@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Staging — Full Pipeline</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .page-title {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .page-title h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.5px;
+  }
+  .page-title p {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 20px 0 32px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .dot-built    { background: #22c55e; }
+  .dot-wip      { background: #f59e0b; }
+  .dot-pending  { background: #475569; }
+  .dot-api      { background: #6366f1; }
+
+  /* Main pipeline container */
+  .pipeline {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Phase header */
+  .phase-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #475569;
+    padding: 0 0 8px 4px;
+    margin-top: 28px;
+  }
+  .phase-label:first-child { margin-top: 0; }
+
+  /* Stage row */
+  .stage-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    position: relative;
+  }
+
+  /* Connector lines */
+  .stage-row + .stage-row::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 32px;
+    width: 2px;
+    height: 10px;
+    background: #1e293b;
+  }
+
+  /* Arrow between stage rows within same phase */
+  .arrow-down {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 31px;
+    height: 18px;
+    color: #334155;
+    font-size: 18px;
+  }
+
+  /* Stage card */
+  .stage {
+    flex: 1;
+    background: #1a1f2e;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 14px 16px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .stage:hover { border-color: #334155; }
+
+  .stage.built    { border-left: 3px solid #22c55e; }
+  .stage.wip      { border-left: 3px solid #f59e0b; }
+  .stage.pending  { border-left: 3px solid #334155; }
+
+  .stage-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .stage-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .icon-built   { background: #14532d; }
+  .icon-wip     { background: #451a03; }
+  .icon-pending { background: #1e293b; }
+  .icon-api     { background: #312e81; }
+
+  .stage-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+  .stage-module {
+    font-size: 10px;
+    color: #475569;
+    margin-left: auto;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  .stage-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  /* Status pill */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-top: 8px;
+  }
+  .pill-built    { background: #14532d; color: #86efac; }
+  .pill-wip      { background: #451a03; color: #fcd34d; }
+  .pill-pending  { background: #1e293b; color: #475569; }
+
+  /* Sub-items (pipeline stages) */
+  .sub-stages {
+    margin-top: 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .sub-stage {
+    background: #0f1117;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .sub-stage-name {
+    font-weight: 600;
+    color: #94a3b8;
+  }
+  .sub-stage-type {
+    color: #475569;
+    font-size: 10px;
+    font-family: monospace;
+    margin-top: 2px;
+  }
+  .sub-stage.active .sub-stage-name { color: #6366f1; }
+
+  /* Status flow bar */
+  .status-flow {
+    max-width: 960px;
+    margin: 36px auto 0;
+    background: #1a1f2e;
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .status-flow-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 14px;
+  }
+  .statuses {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .status-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+    font-family: monospace;
+  }
+  .status-trigger {
+    font-size: 10px;
+    color: #475569;
+    text-align: center;
+    max-width: 80px;
+    line-height: 1.3;
+  }
+  .status-arrow {
+    font-size: 16px;
+    color: #334155;
+    padding: 0 2px;
+    align-self: center;
+    margin-bottom: 16px;
+  }
+
+  .s-pending    { background: #1e293b; color: #475569; }
+  .s-uploaded   { background: #0c2a4a; color: #38bdf8; }
+  .s-analyzing  { background: #1a1000; color: #fbbf24; }
+  .s-analyzed   { background: #0f2d0f; color: #4ade80; }
+  .s-brief      { background: #1e1b4b; color: #a5b4fc; }
+  .s-generating { background: #2d1b00; color: #fb923c; }
+  .s-staged     { background: #0a2010; color: #34d399; }
+  .s-error      { background: #2d0a0a; color: #f87171; }
+
+  /* API table */
+  .api-table {
+    max-width: 960px;
+    margin: 20px auto 0;
+    background: #1a1f2e;
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .api-table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #1e293b;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 20px;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #1e293b;
+  }
+  td {
+    padding: 10px 20px;
+    border-bottom: 1px solid #0f1117;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1e293b20; }
+
+  code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    background: #0f1117;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #7dd3fc;
+  }
+  .built-tag  { color: #4ade80; font-weight: 600; }
+  .wip-tag    { color: #fbbf24; font-weight: 600; }
+  .pending-tag { color: #475569; }
+
+  @media (max-width: 600px) {
+    .sub-stages { flex-direction: column; }
+    .statuses { gap: 2px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Smart Staging — Complete Pipeline</h1>
+  <p>Full system map · All pipeline UI complete · March 2026</p>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-built"></div> Built &amp; wired</div>
+  <div class="legend-item"><div class="legend-dot dot-wip"></div> In progress / partial</div>
+  <div class="legend-item"><div class="legend-dot dot-pending"></div> API exists, no UI yet</div>
+  <div class="legend-item"><div class="legend-dot dot-api"></div> API-only (no UI planned yet)</div>
+</div>
+
+<div class="pipeline">
+
+  <!-- PHASE 1: PROJECT SETUP -->
+  <div class="phase-label">Phase 1 — Project Setup</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">🏠</div>
+        <span class="stage-name">Create Project</span>
+        <span class="stage-module">core.projects</span>
+      </div>
+      <div class="stage-desc">User creates a named project with location and design language. Stored in core.projects. Entry point for all rooms.</div>
+      <div class="status-pill pill-built">✓ Built</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">🚪</div>
+        <span class="stage-name">Add Room</span>
+        <span class="stage-module">core.rooms</span>
+      </div>
+      <div class="stage-desc">User adds a room (living_room, bedroom, kitchen…) to the project. Starts at status: pending.</div>
+      <div class="status-pill pill-built">✓ Built</div>
+    </div>
+  </div>
+
+  <!-- PHASE 2: IMAGE INPUT -->
+  <div class="phase-label">Phase 2 — Image Input</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">📸</div>
+        <span class="stage-name">Image Upload</span>
+        <span class="stage-module">core.uploads</span>
+      </div>
+      <div class="stage-desc">Drag-drop upload to Supabase Storage <code>uploads/</code> bucket. Inserts row into core.uploads with dimensions, mime type, storage path. Room → status: uploaded.</div>
+      <div class="status-pill pill-built">✓ Built</div>
+    </div>
+  </div>
+
+  <!-- PHASE 3: SCENE ANALYSIS -->
+  <div class="phase-label">Phase 3 — Scene Analysis (M03–M05)</div>
+
+  <div class="stage-row">
+    <div class="stage wip">
+      <div class="stage-header">
+        <div class="stage-icon icon-api">🔬</div>
+        <span class="stage-name">Analyze Scene</span>
+        <span class="stage-module">/api/analyze</span>
+      </div>
+      <div class="stage-desc">
+        Button exists in UI. Triggers full analysis pipeline. Writes to 4 tables in the scene schema:
+      </div>
+      <div class="sub-stages">
+        <div class="sub-stage active">
+          <div class="sub-stage-name">Scene Graph</div>
+          <div class="sub-stage-type">scene.scene_graphs</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">Lighting Analysis</div>
+          <div class="sub-stage-type">scene.lighting_analyses</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">Material Detection</div>
+          <div class="sub-stage-type">scene.material_detections</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">Segmentation Masks</div>
+          <div class="sub-stage-type">scene.segmentation_masks</div>
+        </div>
+      </div>
+      <div class="status-pill pill-wip">⚡ Button built · API exists · Mock mode in dev</div>
+    </div>
+  </div>
+
+  <!-- PHASE 4: DESIGN INTENT -->
+  <div class="phase-label">Phase 4 — Design Intent Capture (M06) ← just built</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">✏️</div>
+        <span class="stage-name">Design Brief Form</span>
+        <span class="stage-module">/api/design-brief</span>
+      </div>
+      <div class="stage-desc">
+        User types a style prompt + picks a style preset (Scandinavian, Mid-Century…) + budget tier. API runs Claude/GPT-4o → structured JSON brief with exact furniture positions, colour palette, material plan, photography params. Stored in generation.design_briefs. Room → status: brief_generated.
+      </div>
+      <div class="sub-stages">
+        <div class="sub-stage active"><div class="sub-stage-name">Prompt textarea</div></div>
+        <div class="sub-stage active"><div class="sub-stage-name">5 style presets</div></div>
+        <div class="sub-stage active"><div class="sub-stage-name">4 budget tiers</div></div>
+        <div class="sub-stage active"><div class="sub-stage-name">Skip / auto-generate</div></div>
+      </div>
+      <div class="status-pill pill-built">✓ Built · Collapses to "Brief ready" pill when done</div>
+    </div>
+  </div>
+
+  <!-- PHASE 5: GENERATION -->
+  <div class="phase-label">Phase 5 — AI Generation Pipeline (M07–M13)</div>
+
+  <div class="stage-row">
+    <div class="stage wip">
+      <div class="stage-header">
+        <div class="stage-icon icon-api">⚙️</div>
+        <span class="stage-name">Generate Staging</span>
+        <span class="stage-module">/api/generate</span>
+      </div>
+      <div class="stage-desc">
+        Button exists. Triggers full multi-stage image pipeline. Each stage writes to <code>generation.generation_results</code> with a shared run_id. Images go to <code>pipeline/</code> Storage bucket.
+      </div>
+      <div class="sub-stages">
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M07 · Render to Photo</div>
+          <div class="sub-stage-type">render_to_photo</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M08 · Fitout</div>
+          <div class="sub-stage-type">fitout</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M09 · Furniture</div>
+          <div class="sub-stage-type">furniture</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M10 · Exterior</div>
+          <div class="sub-stage-type">exterior</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M11 · Lighting &amp; Shadow</div>
+          <div class="sub-stage-type">lighting_shadow</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M12 · Harmonize</div>
+          <div class="sub-stage-type">harmonized</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">M13 · Final</div>
+          <div class="sub-stage-type">final</div>
+        </div>
+      </div>
+      <div class="status-pill pill-wip">⚡ Button built · API exists · Mock mode (passthrough) in dev</div>
+    </div>
+  </div>
+
+  <!-- PHASE 6: RESULTS & QUALITY -->
+  <div class="phase-label">Phase 6 — Results Display + Quality Scoring</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">🖼️</div>
+        <span class="stage-name">Staging Results</span>
+        <span class="stage-module">StagingResults component</span>
+      </div>
+      <div class="stage-desc">Server component. Queries generation.generation_results, groups by run_id, creates signed URLs from pipeline bucket (10-min expiry). Renders Before/After comparison + pipeline stage strip. Invisible on fresh rooms (returns null).</div>
+      <div class="status-pill pill-built">✓ Built · Before/After + Stage strip</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">🧪</div>
+        <span class="stage-name">AI Quality Scoring + Suggestions (M18)</span>
+        <span class="stage-module">/api/suggestions</span>
+      </div>
+      <div class="stage-desc">Fires automatically post-generation (fire-and-forget). Reads quality scores + scene masks → Claude/GPT-4o → 3–8 ranked suggestions stored in quality.render_suggestions. Each suggestion has parameter_changes JSON ready to apply.</div>
+      <div class="sub-stages">
+        <div class="sub-stage active">
+          <div class="sub-stage-name">API exists &amp; fires</div>
+          <div class="sub-stage-type">quality.render_suggestions</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">AISuggestions server component</div>
+          <div class="sub-stage-type">grouped by run · high/med/low impact</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">SuggestionApplyButton client island</div>
+          <div class="sub-stage-type">idle → loading → done → error</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">/api/edit/submit wrapper</div>
+          <div class="sub-stage-type">suggestion → edit_history → /api/edit</div>
+        </div>
+      </div>
+      <div class="status-pill pill-built">✓ Built · Server component + Apply client island</div>
+    </div>
+  </div>
+
+  <!-- PHASE 7: REFINEMENT -->
+  <div class="phase-label">Phase 7 — Refinement Layer</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">✂️</div>
+        <span class="stage-name">Edit Engine (M14)</span>
+        <span class="stage-module">/api/edit + /api/edit/submit</span>
+      </div>
+      <div class="stage-desc">Surgical regeneration. User picks an element → system computes influence zone (element + nearby affected elements) → inpaints only that region → creates new scene graph version (full undo/redo history). Actions: swap, move, resize, material_change, color_change, style_change, remove, add.</div>
+      <div class="sub-stages">
+        <div class="sub-stage active">
+          <div class="sub-stage-name">DirectEditPanel client component</div>
+          <div class="sub-stage-type">Material · Colour · Style · Add · Remove · Swap</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">buildParameterChanges()</div>
+          <div class="sub-stage-type">UI inputs → inferAction()-compatible shapes</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">/api/edit/submit</div>
+          <div class="sub-stage-type">manual + suggestion edits · source field</div>
+        </div>
+      </div>
+      <div class="status-pill pill-built">✓ Built · DirectEditPanel + submit wrapper</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">↓</div>
+
+  <div class="stage-row">
+    <div class="stage built">
+      <div class="stage-header">
+        <div class="stage-icon icon-built">🧬</div>
+        <span class="stage-name">Variants + Style DNA (M16)</span>
+        <span class="stage-module">/api/variants</span>
+      </div>
+      <div class="stage-desc">Two modes: (1) Generate N parallel variants from same analysis with brief variations — user picks their favourite. (2) Extract Style DNA fingerprint (colour palette, material vocabulary, furniture language, photography mood) stored in knowledge.style_dna for reuse across all rooms in the project.</div>
+      <div class="sub-stages">
+        <div class="sub-stage active">
+          <div class="sub-stage-name">VariantsPanel client component</div>
+          <div class="sub-stage-type">count [2·3·4] · V1 ✓ V2 ✓ V3 ✓ result grid</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">Style DNA extraction</div>
+          <div class="sub-stage-type">name input · confidence bar · colour swatches</div>
+        </div>
+        <div class="sub-stage active">
+          <div class="sub-stage-name">StyleDNAResultCard</div>
+          <div class="sub-stage-type">palette · furniture language · photography mood</div>
+        </div>
+      </div>
+      <div class="status-pill pill-built">✓ Built · VariantsPanel + Style DNA extraction</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS FLOW -->
+<div class="status-flow">
+  <div class="status-flow-title">Room Status Flow</div>
+  <div class="statuses">
+    <div class="status-node">
+      <div class="status-badge s-pending">pending</div>
+      <div class="status-trigger">room created</div>
+    </div>
+    <div class="status-arrow">→</div>
+    <div class="status-node">
+      <div class="status-badge s-uploaded">uploaded</div>
+      <div class="status-trigger">image uploaded</div>
+    </div>
+    <div class="status-arrow">→</div>
+    <div class="status-node">
+      <div class="status-badge s-analyzing">analyzing</div>
+      <div class="status-trigger">analyze clicked</div>
+    </div>
+    <div class="status-arrow">→</div>
+    <div class="status-node">
+      <div class="status-badge s-analyzed">analyzed</div>
+      <div class="status-trigger">scene ready</div>
+    </div>
+    <div class="status-arrow">→</div>
+    <div class="status-node">
+      <div class="status-badge s-brief">brief_generated</div>
+      <div class="status-trigger">design brief submitted</div>
+    </div>
+    <div class="status-arrow">→</div>
+    <div class="status-node">
+      <div class="status-badge s-generating">generating</div>
+      <div class="status-trigger">generate clicked</div>
+    </div>
+    <div class="status-arrow">→</div>
+    <div class="status-node">
+      <div class="status-badge s-staged">staged</div>
+      <div class="status-trigger">pipeline done</div>
+    </div>
+    <div class="status-arrow">·</div>
+    <div class="status-node">
+      <div class="status-badge s-error">error</div>
+      <div class="status-trigger">any failure</div>
+    </div>
+  </div>
+</div>
+
+<!-- API TABLE -->
+<div class="api-table" style="margin-top:28px">
+  <div class="api-table-header">All API Routes + Status</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Route</th>
+        <th>Module</th>
+        <th>Purpose</th>
+        <th>UI Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/api/analyze</code></td>
+        <td>M03–M05</td>
+        <td>Scene analysis — scene graph, lighting, materials, masks</td>
+        <td class="built-tag">✓ Button wired</td>
+      </tr>
+      <tr>
+        <td><code>/api/design-brief</code></td>
+        <td>M06</td>
+        <td>User prompt → structured design brief JSON via LLM</td>
+        <td class="built-tag">✓ Form built</td>
+      </tr>
+      <tr>
+        <td><code>/api/generate</code></td>
+        <td>M07–M13</td>
+        <td>Full 7-stage image generation pipeline</td>
+        <td class="built-tag">✓ Button wired</td>
+      </tr>
+      <tr>
+        <td><code>/api/suggestions</code></td>
+        <td>M18</td>
+        <td>Post-gen AI suggestions → quality.render_suggestions</td>
+        <td class="built-tag">✓ AISuggestions + SuggestionApplyButton</td>
+      </tr>
+      <tr>
+        <td><code>/api/edit</code> + <code>/api/edit/submit</code></td>
+        <td>M14</td>
+        <td>Surgical element editing via influence zones + inpainting</td>
+        <td class="built-tag">✓ DirectEditPanel + /api/edit/submit wrapper</td>
+      </tr>
+      <tr>
+        <td><code>/api/variants</code></td>
+        <td>M16</td>
+        <td>Parallel variants + Style DNA extraction</td>
+        <td class="built-tag">✓ VariantsPanel · generate + extract modes</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="max-width:960px;margin:20px auto 0;font-size:11px;color:#334155;text-align:center;padding-bottom:20px;">
+  All 7 pipeline phases UI complete · Mock mode: leave REPLICATE_API_TOKEN blank — original upload passthrough · Signed URLs expire 10min → router.refresh() regenerates · .env.local.example has all required variables
+</div>
+
+</body>
+</html>
