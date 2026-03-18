@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { ReplicateClient, MODELS } from '@/lib/replicate'
+import { MODELS } from '@/lib/replicate'
 import {
   createPipelineRun,
   createPipelineStage,
@@ -26,7 +26,7 @@ function hasReplicateToken(): boolean {
 
 function getReplicateClient(): ReplicateClient | null {
   if (!hasReplicateToken()) return null
-  return new ReplicateClient()
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -542,3 +542,4 @@ function inferMaterialFromSurface(surface: string): string {
   }
   return materialMap[surface] ?? 'unknown'
 }
+ 
