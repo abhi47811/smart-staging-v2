@@ -1,4 +1,4 @@
-// Cross-Room Visibility Status — Next.js API Route (M15) — v1.0
+// Cross-Room Visibility Status — Next.js API Route (M15) — v1.1 (fix: label column)
 // Returns current visibility link state for a project, with room labels enriched.
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,33 +9,27 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const project_id = validateUUID(searchParams.get('project_id') ?? '', 'project_id')
-
     const supabase = await createClient()
 
-    // 1. Fetch all non-deleted rooms for this project (id + name for label enrichment)
+    // 1. Fetch all non-deleted rooms for this project (id + label for enrichment)
     const { data: rooms, error: roomsErr } = await supabase
       .schema('core')
       .from('rooms')
-      .select('id, name')
+      .select('id, label')
       .eq('project_id', project_id)
       .is('deleted_at', null)
 
     if (roomsErr) throw new Error(`Failed to fetch rooms: ${roomsErr.message}`)
 
     const roomList = rooms ?? []
-    const roomIds = roomList.map((r: { id: string; name: string }) => r.id)
-
-    // Build a lookup map: roomId -> room name (label)
+    const roomIds = roomList.map((r: { id: string; label: string }) => r.id)
     const roomMap: Record<string, string> = {}
-    roomList.forEach((r: { id: string; name: string }) => {
-      roomMap[r.id] = r.name
-    })
+    roomList.forEach((r: { id: string; label: string }) => { roomMap[r.id] = r.label })
 
     if (roomIds.length === 0) {
       return NextResponse.json({ links: [], total_links: 0, needs_resync: 0 })
     }
 
-    // 2. Fetch all visibility links whose source room belongs to this project
     const { data: rawLinks, error: linksErr } = await supabase
       .schema('scene')
       .from('visibility_links')
@@ -46,15 +40,10 @@ export async function GET(request: NextRequest) {
 
     const links = rawLinks ?? []
 
-    // 3. Enrich each link with human-readable room labels
     type RawLink = {
-      id: string
-      source_room_id: string
-      target_room_id: string
-      visibility_type: string
-      strength: number
-      needs_resync: boolean
-      last_synced_at: string | null
+      id: string; source_room_id: string; target_room_id: string
+      visibility_type: string; strength: number
+      needs_resync: boolean; last_synced_at: string | null
     }
 
     const enrichedLinks = links.map((link: RawLink) => ({
