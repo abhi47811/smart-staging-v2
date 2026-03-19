@@ -127,6 +127,7 @@ export async function getActiveModel(
 ): Promise<ModelSelection> {
   // Fetch active registry entry
   const { data: registry } = await supabase
+    .schema('generation')
     .from('model_registry')
     .select('*')
     .eq('model_name', modelName)
@@ -150,6 +151,7 @@ export async function getActiveModel(
 
   // Check for active A/B test on this stage
   const { data: abTest } = await supabase
+    .schema('generation')
     .from('ab_tests')
     .select('*')
     .eq('stage_name', stageName)
@@ -168,6 +170,7 @@ export async function getActiveModel(
 
   // Increment samples_collected (best effort)
   supabase
+    .schema('generation')
     .from('ab_tests')
     .update({ samples_collected: (abTest.samples_collected as number) + 1 })
     .eq('id', abTest.id)
@@ -176,6 +179,7 @@ export async function getActiveModel(
   // Fetch the variant's model from registry
   const variantModelId = variant === 'model_a' ? abTest.model_a_id : abTest.model_b_id
   const { data: variantModel } = await supabase
+    .schema('generation')
     .from('model_registry')
     .select('*')
     .eq('id', variantModelId)
@@ -210,6 +214,7 @@ export async function checkBudget(
   estimatedCostUsd: number
 ): Promise<BudgetCheck> {
   const { data: budget } = await supabase
+    .schema('core')
     .from('org_budgets')
     .select('*')
     .eq('org_id', orgId)
@@ -257,6 +262,7 @@ export async function acquireRoomLock(
 ): Promise<boolean> {
   // Check for an existing non-expired lock
   const { data: existing } = await supabase
+    .schema('core')
     .from('room_locks')
     .select('locked_by, lock_type, expires_at')
     .eq('room_id', roomId)
@@ -274,6 +280,7 @@ export async function acquireRoomLock(
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
   const { error } = await supabase
+    .schema('core')
     .from('room_locks')
     .upsert({
       room_id: roomId,
@@ -295,6 +302,7 @@ export async function releaseRoomLock(
   userId: string
 ): Promise<void> {
   await supabase
+    .schema('core')
     .from('room_locks')
     .delete()
     .eq('room_id', roomId)
@@ -314,6 +322,7 @@ export function logTelemetry(
   event: TelemetryEvent
 ): void {
   supabase
+    .schema('generation')
     .from('pipeline_telemetry')
     .insert({
       run_id: event.run_id,

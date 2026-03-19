@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // -----------------------------------------------------------------------
     // 1. Validate input
     // -----------------------------------------------------------------------
-    const body = await request.json()
+    const body = await request.clone().json()
 
     // Gap 3 — structural validation
     const room_id      = validateUUID(body.room_id, 'room_id')
