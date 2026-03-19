@@ -52,6 +52,16 @@ export default async function RoomPage({
     height_px: number
   }>
 
+  // Generate signed URLs for upload previews
+  const uploadsWithUrls = await Promise.all(
+    uploads.map(async (upload) => {
+      const { data } = await supabase.storage
+        .from('uploads')
+        .createSignedUrl(upload.storage_path, 3600) // 1 hour
+      return { ...upload, signedUrl: data?.signedUrl ?? null }
+    })
+  )
+
   return (
     <div>
       <div className="mb-8">
@@ -84,13 +94,21 @@ export default async function RoomPage({
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Source Image</h2>
 
         {/* Existing uploads list */}
-        {uploads.length > 0 && (
+        {uploadsWithUrls.length > 0 && (
           <div className="space-y-3 mb-6">
-            {uploads.map((upload) => (
+            {uploadsWithUrls.map((upload) => (
               <div key={upload.id} className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200">
-                <div className="w-20 h-20 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 font-mono shrink-0">
-                  {upload.width_px}×{upload.height_px}
-                </div>
+                {upload.signedUrl ? (
+                  <img
+                    src={upload.signedUrl}
+                    alt={upload.original_filename}
+                    className="w-20 h-20 object-cover rounded shrink-0"
+                  />
+                ) : (
+                  <div className="w-20 h-20 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 font-mono shrink-0">
+                    {upload.width_px}×{upload.height_px}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <p className="font-medium text-sm text-gray-900 truncate">{upload.original_filename}</p>
                   <p className="text-xs text-gray-400 mt-0.5">

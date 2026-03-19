@@ -138,6 +138,8 @@ export async function POST(request: NextRequest) {
           room_id,
           model_used: depthModel,
           storage_path: depthStoragePath,
+          preview_path: depthMapUrl ? depthStoragePath : null,
+          depth_range: depthMapUrl ? { min: 0.0, max: 10.0, unit: 'meters' } : null,
           confidence_score: depthConfidence,
         })
         .select()
