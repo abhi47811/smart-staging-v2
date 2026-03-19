@@ -63,8 +63,8 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
     setLoading(false)
     if (insertError || !project) return setError(insertError?.message ?? 'Failed to create project')
 
-    router.push(`/projects/${project.id}`)
     router.refresh()
+    router.push(`/projects/${project.id}`)
     onClose()
   }
 
