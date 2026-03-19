@@ -175,3 +175,35 @@ export async function runReplicateAndPersist(
 
   return { prediction, permanentUrls }
 }
+
+// ─── ReplicateClient class ──────────────────────────────────────────────────────
+/**
+ * Class wrapper around the functional Replicate API helpers.
+ * Imported by generation.ts so it can call createPrediction / waitForPrediction / runModel.
+ */
+export class ReplicateClient {
+  /** Start a prediction and return its ID. version param is accepted but ignored (use model:sha format). */
+  async createPrediction(
+    model: string,
+    _version: string,
+    input: ReplicateInput
+  ): Promise<{ id: string }> {
+    const pred = await startPrediction(model, input)
+    return { id: pred.id }
+  }
+
+  /** Poll until the prediction is done and return the full prediction object. */
+  async waitForPrediction(id: string, maxWaitMs = 600_000): Promise<ReplicatePrediction> {
+    return pollUntilDone(id, maxWaitMs)
+  }
+
+  /** Run a model synchronously — blocks until succeeded or throws. */
+  async runModel(
+    model: string,
+    _version: string,
+    input: ReplicateInput
+  ): Promise<unknown> {
+    const pred = await runReplicate(model, input)
+    return pred.output
+  }
+}
