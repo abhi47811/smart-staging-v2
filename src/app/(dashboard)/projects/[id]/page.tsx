@@ -29,6 +29,22 @@ export default async function ProjectPage({
     .is('deleted_at', null)
     .order('sort_order')
 
+  // Generate signed URLs for room thumbnail previews (first upload per room)
+  const roomThumbnails: Record<string, string | null> = {}
+  if (rooms) {
+    await Promise.all(
+      rooms.map(async (room) => {
+        const firstUpload = room.uploads?.[0]
+        if (firstUpload?.storage_path) {
+          const { data } = await supabase.storage
+            .from('uploads')
+            .createSignedUrl(firstUpload.storage_path, 3600)
+          roomThumbnails[room.id] = data?.signedUrl ?? null
+        }
+      })
+    )
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -59,10 +75,18 @@ export default async function ProjectPage({
               href={`/projects/${id}/rooms/${room.id}`}
               className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
             >
-              <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                <span className="text-gray-400 text-sm">
-                  {room.uploads?.length ? `${room.uploads.length} image(s)` : 'No images'}
-                </span>
+              <div className="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+                {roomThumbnails[room.id] ? (
+                  <img
+                    src={roomThumbnails[room.id]!}
+                    alt={room.label}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-gray-400 text-sm">
+                    {room.uploads?.length ? `${room.uploads.length} image(s)` : 'No images'}
+                  </span>
+                )}
               </div>
               <div className="p-4">
                 <h3 className="font-medium text-gray-900">{room.label}</h3>
