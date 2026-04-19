@@ -2,26 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Houspire Staging — Design tokens & global styles */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — near-black creative tool chrome */
+  --surface-0: #08090B;       /* app bg */
+  --surface-1: #0E1013;       /* chrome bars */
+  --surface-2: #14171B;       /* panels */
+  --surface-3: #1B1F24;       /* elevated panels, hover */
+  --surface-4: #242930;       /* pressed, active tab */
+  --surface-canvas: #0B0D10;  /* canvas backdrop */
+
+  /* Borders — precise, thin */
+  --border-weak: #1D2127;
+  --border: #262B32;
+  --border-strong: #363C45;
+
+  /* Text */
+  --text-0: #F5F6F7;          /* primary */
+  --text-1: #C8CCD2;          /* secondary */
+  --text-2: #8A9099;          /* tertiary */
+  --text-3: #5C626B;          /* disabled, dividers */
+  --text-inverse: #0B0D10;
+
+  /* Accent — warm amber signal color (sacred-zone + active) */
+  --amber: oklch(0.78 0.17 75);
+  --amber-dim: oklch(0.56 0.12 75);
+  --amber-bg: oklch(0.28 0.08 75 / 0.35);
+
+  /* Data / progress — cool cyan */
+  --cyan: oklch(0.78 0.12 210);
+  --cyan-dim: oklch(0.56 0.10 210);
+  --cyan-bg: oklch(0.30 0.06 210 / 0.35);
+
+  /* Status */
+  --ok: oklch(0.78 0.14 150);
+  --warn: oklch(0.80 0.16 85);
+  --err: oklch(0.70 0.19 25);
+  --sacred: oklch(0.70 0.19 15);   /* crimson — sacred-zone warning */
+
+  /* Shadows */
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 12px 40px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.3);
+  --shadow-panel: inset 0 1px 0 rgba(255,255,255,0.03);
+
+  /* Type */
+  --font-sans: var(--font-inter-tight), 'Inter Tight', 'Inter', -apple-system, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background: var(--surface-0);
+  color: var(--text-0);
+  font-size: 13px;
+  line-height: 1.5;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+button, input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button { cursor: pointer; background: none; border: none; padding: 0; }
+input, textarea { background: none; border: none; outline: none; }
+
+/* Utility */
+.mono { font-family: var(--font-mono); font-feature-settings: 'zero'; }
+.cap { text-transform: uppercase; letter-spacing: 0.09em; font-size: 10.5px; font-weight: 600; color: var(--text-2); }
+.cap-sm { text-transform: uppercase; letter-spacing: 0.08em; font-size: 9.5px; font-weight: 600; color: var(--text-2); }
+
+.hairline { height: 1px; background: var(--border-weak); }
+.vhairline { width: 1px; background: var(--border-weak); }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; border: 2px solid transparent; }
+
+/* Selection */
+::selection { background: var(--amber-bg); color: var(--amber); }
+
+/* Animations */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes scan-line {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
